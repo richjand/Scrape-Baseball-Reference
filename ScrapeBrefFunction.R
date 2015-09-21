@@ -1,7 +1,20 @@
+##Functions to scrape and munge box scores from Baseball Reference##
+
 library(magrittr)
 library(stringr)
 library(dplyr)
 library(rvest)
+library(lubridate)
+
+nl97 <- c('ARI', 'ATL', 'FLA', 'NYM', 'MON', 'WAS',
+         'PHI','HOU','PIT','CIN','STL','CHC','SFG',
+         'LAD','COL','SDP')
+
+nl9812 <- c(nl97, 'MIL')
+
+nl1314 <- nl9812[nl9812!='HOU']
+
+
 
 replacename <- function(dat){ ##Replaces team names found in box scores with Lahman equivalents##
   dat = str_replace(dat,'AnaheimAngelsbatting', 'ANA')
@@ -16,6 +29,7 @@ replacename <- function(dat){ ##Replaces team names found in box scores with Lah
   dat = str_replace(dat,'ColoradoRockiesbatting','COL')
   dat = str_replace(dat,'DetroitTigersbatting','DET')
   dat = str_replace(dat,'FloridaMarlinsbatting','FLA')
+  dat = str_replace(dat,'MiamiMarlinsbatting','FLA')
   dat = str_replace(dat,'HoustonAstrosbatting','HOU')
   dat = str_replace(dat,'KansasCityRoyalsbatting','KCR')
   dat = str_replace(dat,'LosAngelesDodgersbatting','LAD')
@@ -27,7 +41,6 @@ replacename <- function(dat){ ##Replaces team names found in box scores with Lah
   dat = str_replace(dat,'OaklandAthleticsbatting','OAK')
   dat = str_replace(dat,'PhiladelphiaPhilliesbatting','PHI')
   dat = str_replace(dat,'PittsburghPiratesbatting','PIT')
-  dat = str_replace(dat,'SanDiegoPadresbatting','PIT')
   dat = str_replace(dat,'SanDiegoPadresbatting','SDP')
   dat = str_replace(dat,'SeattleMarinersbatting','SEA')
   dat = str_replace(dat,'SanFranciscoGiantsbatting','SFG')
@@ -157,10 +170,26 @@ grabyear <- function(year){
     yeargames[[date]] <- dayboxes 
     
   }
-  yearboxes <- rbind_all(yeargames) ##combine days from the year
+  yearboxes <- rbind_all(yeargames)
+  yearboxes$year <- year
+  yearboxes$team_league <- ifelse(yearboxes$year == 1997 & yearboxes$teamID %in% nl97, 'NL', 
+                                 ifelse(yearboxes$year %in% 1998:2012 & yearboxes$teamID %in% nl9812, 'NL',
+                                        ifelse(yearboxes$year %in% 2013:2014 & yearboxes$teamID %in% nl1314, 'NL', 'AL')))
+  yearboxes$date <- dmy(
+    str_c(str_sub(yearboxes$game_id, 10, 11),
+          str_sub(yearboxes$game_id, 8, 9),
+          str_sub(yearboxes$game_id, 4, 7),
+          sep = '-'
+    )
+  )
+  ##combine days from the year
   #ywoba <- filter(woba_weights, Season == year) ##Optional code to calculate game Woba using weights from Fangraphs
   #yearboxes <- yearboxes %>%
     #filter(PA != 0) %>%
     #mutate(woba = (ywoba$wBB*ubb + ywoba$w1B*h1b + ywoba$w2B*h2b + ywoba$w3B*h3b + ywoba$wHR*hr + ywoba$wHBP*hbp)/(PA-ibb))
   return(yearboxes)
 }
+
+z <- grabyear(1999)
+write.csv(z, file = 'boxes1999.csv', row.names = F)
+rm(z)
